@@ -1,8 +1,6 @@
-from accelerate.test_utils.testing import get_backend
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
-from transformers.commands.chat import RichInterface
-import torch
 from threading import Thread
+import torch
 
 MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"
 
@@ -25,8 +23,6 @@ def main():
     generation_streamer = TextIteratorStreamer(tokenizer, skip_special_tokens=True, skip_prompt=True)
     pad_token_id, eos_token_ids = tokenizer.pad_token_id, tokenizer.eos_token_id
 
-    interface = RichInterface(model_name=MODEL_NAME, user_name="hey")
-    interface.clear()
     chat = []
     chat.append({"role": "user", "content": "Hello there handsom"})
 
@@ -48,13 +44,13 @@ def main():
         "pad_token_id": pad_token_id,
         "eos_token_id": eos_token_ids,
     }
-    # user_input = interface.input()
-    # print(user_input)
+
     thread = Thread(target=model.generate, kwargs=generation_kwargs)
     thread.start()
-    model_output = interface.stream_output(generation_streamer)
+    for token in generation_streamer:
+        print(token, end='')
     thread.join()
-    chat.append({"role": "assistant", "content": model_output})
+
 
 if __name__ == "__main__":
     main()
