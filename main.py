@@ -58,10 +58,10 @@ def main():
         horz_differn=0.25,
         outside_good=0
     )
-    for firm in (naive_agent1,):
+    for firm in (naive_agent1,naive_agent2, naive_agent3):
         simulation.add_firm(firm, 1)
     
-    for i, market_iteration in enumerate(simulation.simulate_market(count=100)):
+    for i, market_iteration in enumerate(simulation.simulate_market(count=5)):
         print(f"For iteration {i + 1}:")
         for priced_product in market_iteration.priced_products:
             print(f'\tFor firm {priced_product.firm_id}')
