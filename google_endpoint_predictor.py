@@ -81,3 +81,8 @@ def genereate_text(message, system_prompt="", max_tokens=1500):
                 instances=request_instance,
             )
     return result.predictions[0]['choices'][0]['message']['content'].strip()
+
+def generate_specialized_text(system_prompt, max_toxens=1500):
+    def generate_text_spec(message):
+        return genereate_text(message, system_prompt=system_prompt, max_tokens=max_toxens)
+    return generate_text_spec

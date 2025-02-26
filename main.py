@@ -1,57 +1,24 @@
-from random import gauss
+import re
+import json
 
-from market_history import *
 from market_simulation import LogitPriceMarketSimulation
-from pricing_agent import PricingAgent
+from google_endpoint_predictor import generate_specialized_text
+from lllm_pricing_agent import LLLMPricingAgent
 
-class NaivePricingAgent(PricingAgent):
-    def __init__(self, firm_id: int, price_per_unit: float, decrease_multiplier: float, decay_factor: float):
-        super().__init__(firm_id, price_per_unit)
-        self.decrease_multiplier = decrease_multiplier
-        self.decay_factor = decay_factor
-        self.chosen_price = 0
+def generate_prompt(firm_id, market_history, context):
+    if context is None:
+        return "Please choose two numbers between 1 to 10, use the following json format and nothing else:\nMY_OUTPUT: {\"number_choice\": {NUMBER_RESULT}, \"future_choice\": {NUMBER_RESULT}}"
+    return "Please choose two numbers between 1 to 10, your previous \"future_choice\" was: %d, please take that into account.\n Use the following json format and nothing else:\nMY_OUTPUT: {\"number_choice\": {NUMBER_RESULT}, \"future_choice\": {NUMBER_RESULT}}" % context
 
-    def generate_price(self, market_history: MarketHistory) -> float:
-        average_iteration_prices = []
-
-        if len(market_history.past_iteration) == 0:
-            self.chosen_price = max(self.price_per_unit * 1.01, gauss(self.price_per_unit+5, 3))
-            return self.chosen_price
-        
-        for market_iteration in market_history.past_iteration:
-            current_iteration_sum = 0
-            total_items_sold = 0
-            my_price = self.extract_my_product(market_iteration=market_iteration).price
-            for priced_product in market_iteration.priced_products:
-                if priced_product.firm_id == self.get_firm_id():
-                    continue
-                if priced_product.quantity_sold == 0:
-                    continue
-
-                current_iteration_sum += priced_product.price * priced_product.quantity_sold
-                total_items_sold += priced_product.quantity_sold
-            
-            if total_items_sold == 0:
-                average_iteration_prices.append(my_price)
-                continue
-
-            current_iteration_average = current_iteration_sum / total_items_sold
-            average_iteration_prices.append(current_iteration_average)
-        
-        weighted_sum = 0
-        total_weight = 0
-        current_weight = 1
-        for price in reversed(average_iteration_prices):
-            weighted_sum += price * current_weight
-            total_weight += current_weight
-            current_weight *= self.decay_factor
-        
-        return max((weighted_sum / total_weight) * self.decrease_multiplier, self.get_price_per_unit() * 1.01)
+def output_parser(result):
+    print(result)
+    resulting_output = json.loads(result.split('MY_OUTPUT:')[1].strip())
+    print(resulting_output)
+    return resulting_output['number_choice'], resulting_output['future_choice']
 
 def main():
-    naive_agent1: NaivePricingAgent = NaivePricingAgent(0, 1, 0.98, 0.1)
-    naive_agent2: NaivePricingAgent = NaivePricingAgent(1, 1, 0.93, 0.5)
-    naive_agent3: NaivePricingAgent = NaivePricingAgent(3, 1, 0.91, 0.9)
+
+    my_agent = LLLMPricingAgent(5, 1, generate_specialized_text("You are an obidient AI assistant. You respond with short answers following you directive, you add no uneeded text and follow the requested format."), generate_prompt,output_parser)
 
     simulation = LogitPriceMarketSimulation(
         quantity_scale=100,
@@ -59,16 +26,16 @@ def main():
         horz_differn=0.25,
         outside_good=0
     )
-    for firm in (naive_agent1,naive_agent2, naive_agent3):
-        simulation.add_firm(firm, 1)
+
+    simulation.add_firm(my_agent, 1)
     
-    for i, market_iteration in enumerate(simulation.simulate_market(count=5)):
+    for i, market_iteration in enumerate(simulation.simulate_market(count=30)):
         print(f"For iteration {i + 1}:")
         for priced_product in market_iteration.priced_products:
             print(f'\tFor firm {priced_product.firm_id}')
             print('\t\tChosen Price %.2f' % priced_product.price)
             print('\t\tQuantity sold %.2f' % priced_product.quantity_sold)
-            print('\t\tProft %.2f' % priced_product.profit)
+            print('\t\tProfit %.2f' % priced_product.profit)
         print("\n")
     
 if __name__ == "__main__":
