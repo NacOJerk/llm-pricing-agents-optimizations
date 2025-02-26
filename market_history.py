@@ -6,6 +6,7 @@ class PricedProduct:
     firm_id: int
     price: float
     quantity_sold: float
+    profit: float
 
 @dataclass
 class MarketIteration:

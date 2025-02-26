@@ -67,6 +67,7 @@ def main():
             print(f'\tFor firm {priced_product.firm_id}')
             print('\t\tChosen Price %.2f' % priced_product.price)
             print('\t\tQuantity sold %.2f' % priced_product.quantity_sold)
+            print('\t\tProft %.2f' % priced_product.profit)
         print("\n")
     
 if __name__ == "__main__":

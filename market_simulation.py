@@ -47,7 +47,8 @@ class LogitPriceMarketSimulation:
             market_results.append(PricedProduct(
                 firm_id=firm_id,
                 price=firm_prices[firm_id],
-                quantity_sold=quantity_sold
+                quantity_sold=quantity_sold,
+                profit=(firm_prices[firm_id] - self.products[firm_id].pricer.get_price_per_unit()) * quantity_sold
             ))
         
         market_iteration = MarketIteration(market_results)
