@@ -9,12 +9,14 @@ class NaivePricingAgent(PricingAgent):
         super().__init__(firm_id, price_per_unit)
         self.decrease_multiplier = decrease_multiplier
         self.decay_factor = decay_factor
+        self.chosen_price = 0
 
     def generate_price(self, market_history: MarketHistory) -> float:
         average_iteration_prices = []
 
         if len(market_history.past_iteration) == 0:
-            return max(self.price_per_unit * 1.01, gauss(self.price_per_unit+5, 3))
+            self.chosen_price = max(self.price_per_unit * 1.01, gauss(self.price_per_unit+5, 3))
+            return self.chosen_price
         
         for market_iteration in market_history.past_iteration:
             current_iteration_sum = 0
@@ -28,6 +30,10 @@ class NaivePricingAgent(PricingAgent):
                 current_iteration_sum += priced_product.price * priced_product.quantity_sold
                 total_items_sold += priced_product.quantity_sold
             
+            if total_items_sold == 0:
+                average_iteration_prices.append(self.chosen_price)
+                continue
+
             current_iteration_average = current_iteration_sum / total_items_sold
             average_iteration_prices.append(current_iteration_average)
         
@@ -52,7 +58,7 @@ def main():
         horz_differn=0.25,
         outside_good=0
     )
-    for firm in (naive_agent1, naive_agent2, naive_agent3):
+    for firm in (naive_agent1,):
         simulation.add_firm(firm, 1)
     
     for i, market_iteration in enumerate(simulation.simulate_market(count=100)):
