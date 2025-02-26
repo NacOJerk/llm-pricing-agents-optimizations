@@ -5,6 +5,7 @@ from typing import List
 class PricedProduct:
     firm_id: int
     price: float
+    quantity_sold: float
 
 @dataclass
 class MarketIteration:
