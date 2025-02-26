@@ -15,3 +15,8 @@ class PricingAgent(abc.ABC):
     
     def get_price_per_unit(self) -> float:
         return self.price_per_unit
+    
+    def extract_my_product(self, market_iteration: MarketIteration) -> PricedProduct:
+        options = list(filter(lambda priced_product: priced_product.firm_id == self.firm_id, market_iteration.priced_products))
+        assert len(options) == 1, "Invalid priced products (%d)" % len(options)
+        return options[0]

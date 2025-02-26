@@ -21,6 +21,7 @@ class NaivePricingAgent(PricingAgent):
         for market_iteration in market_history.past_iteration:
             current_iteration_sum = 0
             total_items_sold = 0
+            my_price = self.extract_my_product(market_iteration=market_iteration).price
             for priced_product in market_iteration.priced_products:
                 if priced_product.firm_id == self.get_firm_id():
                     continue
@@ -31,7 +32,7 @@ class NaivePricingAgent(PricingAgent):
                 total_items_sold += priced_product.quantity_sold
             
             if total_items_sold == 0:
-                average_iteration_prices.append(self.chosen_price)
+                average_iteration_prices.append(my_price)
                 continue
 
             current_iteration_average = current_iteration_sum / total_items_sold
