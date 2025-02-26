@@ -9,7 +9,7 @@ class PricedProduct:
 
 @dataclass
 class MarketIteration:
-    assigned_prices: List[PricedProduct]
+    priced_products: List[PricedProduct]
 
 @dataclass
 class MarketHistory:
