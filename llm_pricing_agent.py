@@ -8,7 +8,7 @@ PromtContext = Any
 TextGenerator = Callable[[str], str]
 PromtGenerator = Callable[['LLMPricingAgent', MarketHistory, PromtContext], str]
 OutputParser = Callable[[PromtContext, str], Tuple[float, PromtContext]]
-LLM_RETRY_COUNT = 100
+LLM_RETRY_COUNT = 10
 
 class LLMPricingAgent(PricingAgent):
     def __init__(self, firm_id: int, price_per_unit: float,
