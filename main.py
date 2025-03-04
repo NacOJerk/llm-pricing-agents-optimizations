@@ -1,7 +1,7 @@
 from dataclasses import dataclass, replace
 from typing import Tuple
 
-from lllm_pricing_agent import LLLMPricingAgent, PromtContext
+from llm_pricing_agent import LLMPricingAgent, PromtContext
 from market_simulation import LogitPriceMarketSimulation
 from market_history import MarketHistory
 import numpy as np
@@ -17,7 +17,7 @@ class LLMContext:
     plans: str
     insights: str
 
-def generate_market_history(_: LLLMPricingAgent, market_history: MarketHistory) -> str:
+def generate_market_history(_: LLMPricingAgent, market_history: MarketHistory) -> str:
     accumilative_history = []
     for i, past_iteration in enumerate(market_history.past_iteration, start=1):
         assert len(past_iteration.priced_products) == 1, "Expecting monopoly setting"
@@ -31,7 +31,7 @@ def generate_market_history(_: LLLMPricingAgent, market_history: MarketHistory) 
 
     return '\n'.join(accumilative_history)
 
-def generate_prompt(llm_model: LLLMPricingAgent, market_history: MarketHistory, context: LLMContext) -> str:
+def generate_prompt(llm_model: LLMPricingAgent, market_history: MarketHistory, context: LLMContext) -> str:
     full_prompt = PRODUCT_INFORMATION.format(marignal_cost=context.cost_per_unit,
                                              max_pay=context.max_client_price)
     
@@ -100,7 +100,7 @@ def main():
                                                                                cost_to_make=AGENT_COST_TO_MAKE) * monopoly_price_multiplier,
                                 plans = 'No known plans',
                                 insights = 'No known insights')
-    my_agent = LLLMPricingAgent(AGENT_FIRM_ID, initial_state.cost_per_unit, generate_specialized_text(OBJECTIVE_TASK), generate_prompt,output_parser, initial_context=initial_state)
+    my_agent = LLMPricingAgent(AGENT_FIRM_ID, initial_state.cost_per_unit, generate_specialized_text(OBJECTIVE_TASK), generate_prompt,output_parser, initial_context=initial_state)
 
     simulation.add_firm(my_agent, AGENT_PRODUCT_QUALITY)
 

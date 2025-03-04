@@ -4,10 +4,11 @@ from pricing_agent import PricingAgent
 
 PromtContext = Any
 TextGenerator = Callable[[str], str]
-PromtGenerator = Callable[['LLLMPricingAgent', MarketHistory, PromtContext], str]
+PromtGenerator = Callable[['LLMPricingAgent', MarketHistory, PromtContext], str]
 OutputParser = Callable[[PromtContext, str], Tuple[float, PromtContext]]
+LLM_RETRY_COUNT = 100
 
-class LLLMPricingAgent(PricingAgent):
+class LLMPricingAgent(PricingAgent):
     def __init__(self, firm_id: float, price_per_unit: float,
                 text_generator: TextGenerator,
                 promt_generator: PromtGenerator,
@@ -21,7 +22,12 @@ class LLLMPricingAgent(PricingAgent):
     
     def generate_price(self, market_history: MarketHistory) -> float:
         generated_promt = self.promt_generator(self, market_history, self.context)
-        llm_output = self.text_generator(generated_promt)
+        for i in range(LLM_RETRY_COUNT):
+            try:
+                llm_output = self.text_generator(generated_promt)
+            except AssertionError:
+                if i == (LLM_RETRY_COUNT - 1):
+                    raise
         new_price, new_context = self.output_parser(self.context, llm_output) # TODO: Allow throwing promt generation exception
         self.context = new_context
         return new_price
