@@ -1,6 +1,9 @@
 from dataclasses import dataclass
+from functools import lru_cache
 from math import exp
+import numpy as np
 from typing import List, Dict
+from scipy.optimize import minimize
 
 from market_history import *
 from pricing_agent import PricingAgent
@@ -48,7 +51,7 @@ class LogitPriceMarketSimulation:
                 firm_id=firm_id,
                 price=firm_prices[firm_id],
                 quantity_sold=quantity_sold,
-                profit=(firm_prices[firm_id] - self.products[firm_id].pricer.get_price_per_unit()) * quantity_sold
+                profit=(firm_prices[firm_id] - self.price_scale * self.products[firm_id].pricer.get_price_per_unit()) * quantity_sold
             ))
         
         market_iteration = MarketIteration(market_results)
@@ -62,3 +65,18 @@ class LogitPriceMarketSimulation:
             market_iterations.append(self._simulate_market())
         
         return market_iterations
+
+    @lru_cache
+    def find_monopoly_price(self, product_quality=1, cost_to_make=1):
+        outside_godd = np.exp(self.outoutside_good) / self.horz_differn
+        def calculate_minus_profit(price):
+            price_scaled = price / self.price_scale
+            quality_minus_price = product_quality - price_scaled
+            q_m_p_scaled = quality_minus_price / self.horz_differn
+            logit = np.exp(q_m_p_scaled)
+            q_i = logit / (logit + outside_godd)
+            q_i_scaled = self.ququantity_scale * q_i
+            return -(price - self.price_scale * cost_to_make) * q_i_scaled
+        optimization_result = minimize(calculate_minus_profit, cost_to_make)
+        assert optimization_result.success, "Failed finding optimized price"
+        return optimization_result.x[0]
