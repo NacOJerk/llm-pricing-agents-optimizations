@@ -21,6 +21,7 @@ class LLMPricingAgent(PricingAgent):
         self.promt_generator: PromtGenerator = promt_generator
         self.output_parser: OutputParser = output_parser
         self.context: PromtContext = initial_context
+        self.total_exceptions = 0
     
     def generate_price(self, market_history: MarketHistory) -> float:
         generated_promt = self.promt_generator(self, market_history, self.context)
@@ -30,6 +31,7 @@ class LLMPricingAgent(PricingAgent):
                 new_price, new_context = self.output_parser(self.context, llm_output)
                 break
             except Exception:
+                self.total_exceptions += 1
                 logger.warning('Failed retrying (Current attempt: %d)' % (i+1))
                 if i == (LLM_RETRY_COUNT - 1):
                     logger.error('To many failures, quiting experiment')

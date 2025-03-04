@@ -1,7 +1,9 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, asdict
+from datetime import datetime
+import json
 import numpy as np
 import time
-from typing import Tuple
+from typing import Tuple, Dict
 
 from llm_pricing_agent import LLMPricingAgent
 from logger import logger
@@ -10,7 +12,7 @@ from market_history import MarketHistory
 from prompt_costs import OBJECTIVE_TASK, SECTION_DIVIDER, PRODUCT_INFORMATION, PROMPT_EXPLAINIATION, \
                     PLANS_CONTENT, INSIGHT_CONTENT, MARKET_DATA, FINAL_TASK, PLAN_CONTENT_INDICATOR, \
                     INSIGHT_CONTENT_INDICATOR, CHOSEN_PRICE_INDICATOR, SINGLE_MARKET_ROUND_DATA
-from together_endpoint_predictor import generate_specialized_text
+from together_endpoint_predictor import generate_specialized_text, CHOSEN_MODEL
 
 @dataclass
 class LLMContext:
@@ -97,21 +99,19 @@ MARKET_OUTSIDE_GOOD = 0
 PRODUCT_QUALITIES = 2
 HORZ_DIFFEREN = 0.25
 QUANTITY_SCALE = 100
+MARKET_ITERATIONS = 300
 
-
-def main():
-    PRICE_SCALE = 10
-
+def simulate_full_experiment(price_scale: float) -> Tuple[MarketHistory, Dict]:
     simulation = LogitPriceMarketSimulation(
         quantity_scale=QUANTITY_SCALE,
-        price_scale=PRICE_SCALE,
+        price_scale=price_scale,
         horz_differn=HORZ_DIFFEREN,
         outside_good=MARKET_OUTSIDE_GOOD
     )
 
     logger.info('Simulation details:')
     logger.info(f'quantity_scale={QUANTITY_SCALE}')
-    logger.info(f'price_scale={PRICE_SCALE}')
+    logger.info(f'price_scale={price_scale}')
     logger.info(f'horz_differn={HORZ_DIFFEREN}')
     logger.info(f'outside_good={MARKET_OUTSIDE_GOOD}')
 
@@ -139,11 +139,12 @@ def main():
 
     simulation.add_firm(my_agent, AGENT_PRODUCT_QUALITY)
 
+    failed = False
     last_iteration = 0
     logger.info('Starting simulation')
     start_time = time.time()
     try:
-        for i, market_iteration in enumerate(simulation.simulate_market(count=300)):
+        for i, market_iteration in enumerate(simulation.simulate_market(count=MARKET_ITERATIONS)):
             logger.info(f"For iteration {i + 1}:")
             for priced_product in market_iteration.priced_products:
                 logger.info(f'\tFor firm {priced_product.firm_id}')
@@ -154,12 +155,35 @@ def main():
             last_iteration = i + 1
     except Exception:
         logger.exception("Caught an exception:")
+        failed = True
     finally:
         logger.info("Ran %d iterations" % (last_iteration))
 
     total_time = time.time() - start_time
     logger.info('Total running time %.2f seconds' % total_time)
     logger.info('Reminder the monopoly price is %.2f' % monopoly_price)
+    additional_context = {'monopoly_price': monopoly_price,
+                          'total_time': total_time,
+                          'total_exceptions': my_agent.total_exceptions,
+                          'monopoly_price_multiplier': monopoly_price_multiplier,
+                          'failed': failed,
+                          'used_model': CHOSEN_MODEL}
+
+    return MarketHistory(simulation.market_iterations), additional_context
+
+def main():
+
+    market_history_template = datetime.now().strftime('market_history_%%.2f_%H_%M_%d_%m_%Y.json')
+
+    for scale in [1, 3.2, 10]:
+        market_history, addit_data = simulate_full_experiment(scale)
+        market_history_transformed = asdict(market_history)
+        final_state = {
+            'additional_context': addit_data,
+            'market_history': market_history_transformed
+        }
+        with open(market_history_template % scale, 'w') as f:
+            json.dump(final_state, f)
 
 if __name__ == "__main__":
     main()

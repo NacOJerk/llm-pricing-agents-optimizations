@@ -12,6 +12,7 @@ wheels/
 
 # Logs
 *.log
+market_history*.json
 
 # VS Code
 .vscode/
