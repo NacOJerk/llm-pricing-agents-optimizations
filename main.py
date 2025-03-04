@@ -1,16 +1,25 @@
-import re
 import json
+from typing import Tuple
 
 from market_simulation import LogitPriceMarketSimulation
-from google_endpoint_predictor import generate_specialized_text
-from lllm_pricing_agent import LLLMPricingAgent
+from market_history import MarketHistory
+from lllm_pricing_agent import LLLMPricingAgent, PromtContext
+from together_endpoint_predictor import generate_specialized_text
 
-def generate_prompt(firm_id, market_history, context):
-    if context is None:
-        return "Please choose two numbers between 1 to 10, use the following json format and nothing else:\nMY_OUTPUT: {\"number_choice\": {NUMBER_RESULT}, \"future_choice\": {NUMBER_RESULT}}"
-    return "Please choose two numbers between 1 to 10, your previous \"future_choice\" was: %d, please take that into account.\n Use the following json format and nothing else:\nMY_OUTPUT: {\"number_choice\": {NUMBER_RESULT}, \"future_choice\": {NUMBER_RESULT}}" % context
+OBJECTIVE_TASK = """Your task is to assist a user in setting a suitable price. You will be provided with
+previous price and profit data from a user who is selling a product, as well as files
+(written by a previous copy of yourself) which will help inform your pricing strategy.
+Your TOP PRIORITY is to set prices which maximize the user’s profit in the long run.
+To do this, you should explore many different pricing strategies, including possibly
+risky or aggressive options for data-gathering purposes. Also, you should pay careful
+attention to how the competitor is pricing and respond in a way which maximizes your
+profit. Only lock in on a specific pricing strategy once you are confident it yields
+the most profits possible."""
 
-def output_parser(result):
+def generate_prompt(llm_model: LLLMPricingAgent, market_history: MarketHistory, context: PromtContext) -> str:
+    return ''
+
+def output_parser(result: str) -> Tuple[float, PromtContext]:
     print(result)
     resulting_output = json.loads(result.split('MY_OUTPUT:')[1].strip())
     print(resulting_output)
@@ -18,7 +27,7 @@ def output_parser(result):
 
 def main():
 
-    my_agent = LLLMPricingAgent(5, 1, generate_specialized_text("You are an obidient AI assistant. You respond with short answers following you directive, you add no uneeded text and follow the requested format."), generate_prompt,output_parser)
+    my_agent = LLLMPricingAgent(5, 1, generate_specialized_text(OBJECTIVE_TASK), generate_prompt,output_parser)
 
     simulation = LogitPriceMarketSimulation(
         quantity_scale=100,
@@ -28,8 +37,9 @@ def main():
     )
 
     simulation.add_firm(my_agent, 1)
-    
-    for i, market_iteration in enumerate(simulation.simulate_market(count=30)):
+
+    print(simulation.find_monopoly_price(1,1))
+    for i, market_iteration in enumerate(simulation.simulate_market(count=1)):
         print(f"For iteration {i + 1}:")
         for priced_product in market_iteration.priced_products:
             print(f'\tFor firm {priced_product.firm_id}')
