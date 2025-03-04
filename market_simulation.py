@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from math import exp
 import numpy as np
-from typing import List, Dict
+from typing import List, Dict, Iterator
 from scipy.optimize import minimize
 
 from market_history import *
@@ -59,12 +59,9 @@ class LogitPriceMarketSimulation:
 
         return market_iteration
         
-    def simulate_market(self, count=1) -> List[MarketIteration]:
-        market_iterations = []
+    def simulate_market(self, count=1) -> Iterator[MarketIteration]:
         for i in range(count):
-            market_iterations.append(self._simulate_market())
-        
-        return market_iterations
+            yield self._simulate_market()
 
     @lru_cache
     def find_monopoly_price(self, product_quality=1, cost_to_make=1):

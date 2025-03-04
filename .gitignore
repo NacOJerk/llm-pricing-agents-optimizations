@@ -9,3 +9,9 @@ wheels/
 # Virtual environments
 .venv
 .secrets
+
+# Logs
+*.log
+
+# VS Code
+.vscode/

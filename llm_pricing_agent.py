@@ -1,4 +1,6 @@
 from typing import Any, Callable, Tuple
+
+from logger import logger
 from market_history import MarketHistory
 from pricing_agent import PricingAgent
 
@@ -9,7 +11,7 @@ OutputParser = Callable[[PromtContext, str], Tuple[float, PromtContext]]
 LLM_RETRY_COUNT = 100
 
 class LLMPricingAgent(PricingAgent):
-    def __init__(self, firm_id: float, price_per_unit: float,
+    def __init__(self, firm_id: int, price_per_unit: float,
                 text_generator: TextGenerator,
                 promt_generator: PromtGenerator,
                 output_parser: OutputParser,
@@ -25,10 +27,15 @@ class LLMPricingAgent(PricingAgent):
         for i in range(LLM_RETRY_COUNT):
             try:
                 llm_output = self.text_generator(generated_promt)
-            except AssertionError:
+                new_price, new_context = self.output_parser(self.context, llm_output)
+                break
+            except Exception:
+                logger.warning('Failed retrying (Current attempt: %d)' % (i+1))
                 if i == (LLM_RETRY_COUNT - 1):
+                    logger.error('To many failures, quiting experiment')
                     raise
-        new_price, new_context = self.output_parser(self.context, llm_output) # TODO: Allow throwing promt generation exception
+                else:
+                    logger.exception('Exception was:')
         self.context = new_context
         return new_price
 
