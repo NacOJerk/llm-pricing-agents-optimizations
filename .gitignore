@@ -13,6 +13,7 @@ wheels/
 # Logs
 *.log
 market_history*.json
+experimental_results/
 
 # VS Code
 .vscode/
