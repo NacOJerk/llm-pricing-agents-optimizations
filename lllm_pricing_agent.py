@@ -5,7 +5,7 @@ from pricing_agent import PricingAgent
 PromtContext = Any
 TextGenerator = Callable[[str], str]
 PromtGenerator = Callable[['LLLMPricingAgent', MarketHistory, PromtContext], str]
-OutputParser = Callable[[str], Tuple[float, PromtContext]]
+OutputParser = Callable[[PromtContext, str], Tuple[float, PromtContext]]
 
 class LLLMPricingAgent(PricingAgent):
     def __init__(self, firm_id: float, price_per_unit: float,
@@ -22,7 +22,7 @@ class LLLMPricingAgent(PricingAgent):
     def generate_price(self, market_history: MarketHistory) -> float:
         generated_promt = self.promt_generator(self, market_history, self.context)
         llm_output = self.text_generator(generated_promt)
-        new_price, new_context = self.output_parser(llm_output) # TODO: Allow throwing promt generation exception
+        new_price, new_context = self.output_parser(self.context, llm_output) # TODO: Allow throwing promt generation exception
         self.context = new_context
         return new_price
 
