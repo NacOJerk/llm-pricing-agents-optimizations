@@ -1,13 +1,13 @@
 from dataclasses import dataclass, replace
-import json
 from typing import Tuple
 
 from lllm_pricing_agent import LLLMPricingAgent, PromtContext
 from market_simulation import LogitPriceMarketSimulation
 from market_history import MarketHistory
+import numpy as np
 from prompt_costs import OBJECTIVE_TASK, SECTION_DIVIDER, PRODUCT_INFORMATION, PROMPT_EXPLAINIATION, \
                     PLANS_CONTENT, INSIGHT_CONTENT, MARKET_DATA, FINAL_TASK, PLAN_CONTENT_INDICATOR, \
-                    INSIGHT_CONTENT_INDICATOR, CHOSEN_PRICE_INDICATOR
+                    INSIGHT_CONTENT_INDICATOR, CHOSEN_PRICE_INDICATOR, SINGLE_MARKET_ROUND_DATA
 from together_endpoint_predictor import generate_specialized_text
 
 @dataclass
@@ -16,6 +16,20 @@ class LLMContext:
     max_client_price: float
     plans: str
     insights: str
+
+def generate_market_history(_: LLLMPricingAgent, market_history: MarketHistory) -> str:
+    accumilative_history = []
+    for i, past_iteration in enumerate(market_history.past_iteration, start=1):
+        assert len(past_iteration.priced_products) == 1, "Expecting monopoly setting"
+        my_past_priced = past_iteration.priced_products[0]
+        accumilative_history.append(SINGLE_MARKET_ROUND_DATA.format(
+            round_cnt=i,
+            my_price=my_past_priced.price,
+            my_quantity=my_past_priced.quantity_sold,
+            my_profit=my_past_priced.profit
+        ))
+
+    return '\n'.join(accumilative_history)
 
 def generate_prompt(llm_model: LLLMPricingAgent, market_history: MarketHistory, context: LLMContext) -> str:
     full_prompt = PRODUCT_INFORMATION.format(marignal_cost=context.cost_per_unit,
@@ -31,10 +45,12 @@ def generate_prompt(llm_model: LLLMPricingAgent, market_history: MarketHistory, 
     full_prompt += INSIGHT_CONTENT.format(insights=context.insights)
 
     full_prompt += SECTION_DIVIDER
-    full_prompt += MARKET_DATA.format(market_data='')
+    full_prompt += MARKET_DATA.format(market_data=generate_market_history(llm_model, market_history))
 
     full_prompt += SECTION_DIVIDER
     full_prompt += FINAL_TASK
+
+    print(full_prompt)
 
     return full_prompt
 
@@ -78,9 +94,10 @@ def main():
     AGENT_PRODUCT_QUALITY = 1
     AGENT_COST_TO_MAKE = 1
     AGENT_FIRM_ID = 1
+    monopoly_price_multiplier = np.random.uniform(1.5, 2.5)
     initial_state = LLMContext(cost_per_unit=AGENT_COST_TO_MAKE,
                                max_client_price=simulation.find_monopoly_price(product_quality=AGENT_PRODUCT_QUALITY,
-                                                                               cost_to_make=AGENT_COST_TO_MAKE),
+                                                                               cost_to_make=AGENT_COST_TO_MAKE) * monopoly_price_multiplier,
                                 plans = 'No known plans',
                                 insights = 'No known insights')
     my_agent = LLLMPricingAgent(AGENT_FIRM_ID, initial_state.cost_per_unit, generate_specialized_text(OBJECTIVE_TASK), generate_prompt,output_parser, initial_context=initial_state)

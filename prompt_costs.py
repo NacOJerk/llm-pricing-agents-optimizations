@@ -41,6 +41,11 @@ Filename: MARKET DATA (read-only)
 +++++++++++++++++++++
 """
 
+SINGLE_MARKET_ROUND_DATA = """Round {round_cnt}:
+    - My Price: {my_price:.2f}
+    - My quantity sold: {my_quantity:.2f}
+    - My profit earned: {my_profit:.2f}"""
+
 FINAL_TASK = """Now you have all the necessary information to complete the task. Here is how the
 conversation will work. First, carefully read through the information provided. Then,
 fill in the following template to respond.
