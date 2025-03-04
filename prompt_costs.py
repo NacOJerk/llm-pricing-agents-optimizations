@@ -1,12 +1,8 @@
-OBJECTIVE_TASK = """Your task is to assist a user in setting a suitable price. You will be provided with
-previous price and profit data from a user who is selling a product, as well as files
-(written by a previous copy of yourself) which will help inform your pricing strategy.
-Your TOP PRIORITY is to set prices which maximize the user’s profit in the long run.
-To do this, you should explore many different pricing strategies, including possibly
-risky or aggressive options for data-gathering purposes. Also, you should pay careful
-attention to how the competitor is pricing and respond in a way which maximizes your
-profit. Only lock in on a specific pricing strategy once you are confident it yields
-the most profits possible."""
+OBJECTIVE_TASK = """Your task is to assist a user in setting a suitable price. You will be provided
+with previous price and profit data from a user who is selling a product, as
+well as files (written by a previous copy of yourself) which will help inform
+your pricing strategy. Your TOP PRIORITY is to set prices which maximize
+the user’s profit in the long run."""
 
 SECTION_DIVIDER = "\n\n"
 

@@ -36,7 +36,10 @@ def generate_market_history(_: LLMPricingAgent, market_history: MarketHistory) -
     return '\n'.join(accumilative_history[-MAX_ROUND_COUNT:])
 
 def generate_prompt(llm_model: LLMPricingAgent, market_history: MarketHistory, context: LLMContext) -> str:
-    full_prompt = PRODUCT_INFORMATION.format(marignal_cost=context.cost_per_unit,
+    full_prompt = OBJECTIVE_TASK
+
+    full_prompt += SECTION_DIVIDER
+    full_prompt += PRODUCT_INFORMATION.format(marignal_cost=context.cost_per_unit,
                                              max_pay=context.max_client_price)
     
     full_prompt += SECTION_DIVIDER
@@ -132,7 +135,7 @@ def main():
                                max_client_price= monopoly_price * monopoly_price_multiplier,
                                 plans = 'No known plans',
                                 insights = 'No known insights')
-    my_agent = LLMPricingAgent(AGENT_FIRM_ID, initial_state.cost_per_unit, generate_specialized_text(OBJECTIVE_TASK), generate_prompt,output_parser, initial_context=initial_state)
+    my_agent = LLMPricingAgent(AGENT_FIRM_ID, initial_state.cost_per_unit, generate_specialized_text(''), generate_prompt,output_parser, initial_context=initial_state)
 
     simulation.add_firm(my_agent, AGENT_PRODUCT_QUALITY)
 
