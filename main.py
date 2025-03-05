@@ -1,99 +1,21 @@
-from dataclasses import dataclass, replace, asdict
+import argparse
+from dataclasses import asdict
 from datetime import datetime
+from enum import Enum, auto
 import json
 import numpy as np
+from pathlib import Path
 import time
 from typing import Tuple, Dict
 
+from json_prompt_setup import generate_prompt_for_json, output_json_parser
+from legacy_prompt_setup import generate_prompt, output_parser
 from llm_pricing_agent import LLMPricingAgent
-from logger import logger
+from logger import init_logger, get_logger
 from market_simulation import LogitPriceMarketSimulation
 from market_history import MarketHistory
-from prompt_costs import OBJECTIVE_TASK, SECTION_DIVIDER, PRODUCT_INFORMATION, PROMPT_EXPLAINIATION, \
-                    PLANS_CONTENT, INSIGHT_CONTENT, MARKET_DATA, FINAL_TASK, PLAN_CONTENT_INDICATOR, \
-                    INSIGHT_CONTENT_INDICATOR, CHOSEN_PRICE_INDICATOR, SINGLE_MARKET_ROUND_DATA
+from simple_llm_context import LLMContext
 from together_endpoint_predictor import generate_specialized_text, CHOSEN_MODEL
-
-@dataclass
-class LLMContext:
-    cost_per_unit: float
-    max_client_price: float
-    plans: str
-    insights: str
-
-def generate_market_history(_: LLMPricingAgent, market_history: MarketHistory) -> str:
-    MAX_ROUND_COUNT = 100
-
-    accumilative_history = []
-    for i, past_iteration in enumerate(market_history.past_iteration, start=1):
-        assert len(past_iteration.priced_products) == 1, "Expecting monopoly setting"
-        my_past_priced = past_iteration.priced_products[0]
-        accumilative_history.append(SINGLE_MARKET_ROUND_DATA.format(
-            round_cnt=i,
-            my_price=my_past_priced.price,
-            my_quantity=my_past_priced.quantity_sold,
-            my_profit=my_past_priced.profit
-        ))
-
-    return '\n'.join(accumilative_history[-MAX_ROUND_COUNT:])
-
-def generate_prompt(llm_model: LLMPricingAgent, market_history: MarketHistory, context: LLMContext) -> str:
-    full_prompt = OBJECTIVE_TASK
-
-    full_prompt += SECTION_DIVIDER
-    full_prompt += PRODUCT_INFORMATION.format(marignal_cost=context.cost_per_unit,
-                                             max_pay=context.max_client_price)
-    
-    full_prompt += SECTION_DIVIDER
-    full_prompt += PROMPT_EXPLAINIATION
-
-    full_prompt += SECTION_DIVIDER
-    full_prompt += PLANS_CONTENT.format(plans=context.plans)
-
-    full_prompt += SECTION_DIVIDER
-    full_prompt += INSIGHT_CONTENT.format(insights=context.insights)
-
-    full_prompt += SECTION_DIVIDER
-    full_prompt += MARKET_DATA.format(market_data=generate_market_history(llm_model, market_history))
-
-    full_prompt += SECTION_DIVIDER
-    full_prompt += FINAL_TASK
-
-    logger.debug('Built Promt:')
-    logger.debug(full_prompt)
-
-    return full_prompt
-
-def output_parser(prev_context: LLMContext, result: str) -> Tuple[float, LLMContext]:
-    logger.debug('Returned result')
-    logger.debug(result)
-
-    plan_location = result.find(PLAN_CONTENT_INDICATOR)
-    insight_location = result.find(INSIGHT_CONTENT_INDICATOR)
-    price_location = result.find(CHOSEN_PRICE_INDICATOR)
-
-    assert plan_location != -1, "Agent didn't attach a plan"
-    assert insight_location != -1, "Agent didn't attach insights"
-    assert price_location != -1, "Agent didn't attach a price"
-
-    assert plan_location < insight_location < price_location, "Agent out of order"
-
-    plan = result[plan_location + len(PLAN_CONTENT_INDICATOR):insight_location].strip()
-    insights = result[insight_location + len(INSIGHT_CONTENT_INDICATOR):price_location].strip()
-    price_str = result[price_location + len(CHOSEN_PRICE_INDICATOR):].strip()
-
-    logger.debug('Parsed plan:')
-    logger.debug(plan)
-    logger.debug('Parsed insights:')
-    logger.debug(insights)
-    logger.debug('Parsed price string:')
-    logger.debug(price_str)
-
-    price_strip_dollar = price_str.replace('$', '')
-    price = float(price_strip_dollar)
-
-    return price, replace(prev_context, plans=plan,insights=insights)
-
 
 MARKET_OUTSIDE_GOOD = 0
 PRODUCT_QUALITIES = 2
@@ -101,7 +23,12 @@ HORZ_DIFFEREN = 0.25
 QUANTITY_SCALE = 100
 MARKET_ITERATIONS = 300
 
-def simulate_full_experiment(price_scale: float) -> Tuple[MarketHistory, Dict]:
+class PromptType(Enum):
+    UNKNOWN = auto()
+    LEGACY = auto()
+    JSON = auto()
+
+def simulate_full_experiment(price_scale: float, experiment_type: PromptType) -> Tuple[MarketHistory, Dict]:
     simulation = LogitPriceMarketSimulation(
         quantity_scale=QUANTITY_SCALE,
         price_scale=price_scale,
@@ -109,59 +36,71 @@ def simulate_full_experiment(price_scale: float) -> Tuple[MarketHistory, Dict]:
         outside_good=MARKET_OUTSIDE_GOOD
     )
 
-    logger.info('Simulation details:')
-    logger.info(f'quantity_scale={QUANTITY_SCALE}')
-    logger.info(f'price_scale={price_scale}')
-    logger.info(f'horz_differn={HORZ_DIFFEREN}')
-    logger.info(f'outside_good={MARKET_OUTSIDE_GOOD}')
+    if experiment_type == PromptType.LEGACY:
+        prompt_pair = (generate_prompt, output_parser)
+    elif experiment_type == PromptType.JSON:
+        prompt_pair = (generate_prompt_for_json, output_json_parser)
+    else:
+        raise RuntimeError('Unsupported prompt type')
+
+    get_logger().info('Simulation details:')
+    get_logger().info(f'\tquantity_scale: {QUANTITY_SCALE}')
+    get_logger().info(f'\tprice_scale: {price_scale}')
+    get_logger().info(f'\thorz_differn: {HORZ_DIFFEREN}')
+    get_logger().info(f'\toutside_good: {MARKET_OUTSIDE_GOOD}')
+    get_logger().info(f'\tPrompt type: {experiment_type}')
 
 
     AGENT_PRODUCT_QUALITY = 2
     AGENT_COST_TO_MAKE = 1
     AGENT_FIRM_ID = 1
 
-    logger.info(f'AGENT_PRODUCT_QUALITY = {AGENT_PRODUCT_QUALITY}')
-    logger.info(f'AGENT_COST_TO_MAKE = {AGENT_COST_TO_MAKE}')
-    logger.info(f'AGENT_FIRM_ID = {AGENT_FIRM_ID}')
+    get_logger().info(f'AGENT_PRODUCT_QUALITY = {AGENT_PRODUCT_QUALITY}')
+    get_logger().info(f'AGENT_COST_TO_MAKE = {AGENT_COST_TO_MAKE}')
+    get_logger().info(f'AGENT_FIRM_ID = {AGENT_FIRM_ID}')
 
     monopoly_price_multiplier = np.random.uniform(1.5, 2.5)
     monopoly_price = simulation.find_monopoly_price(product_quality=AGENT_PRODUCT_QUALITY,
                                                     cost_to_make=AGENT_COST_TO_MAKE)
     
-    logger.info('Chosen monopoly price multiplier: %.2f' % monopoly_price_multiplier)
-    logger.info('Calculated optimal monopoly price: %.2f' % monopoly_price)
+    get_logger().info('Chosen monopoly price multiplier: %.2f' % monopoly_price_multiplier)
+    get_logger().info('Calculated optimal monopoly price: %.2f' % monopoly_price)
 
     initial_state = LLMContext(cost_per_unit=AGENT_COST_TO_MAKE,
                                max_client_price= monopoly_price * monopoly_price_multiplier,
                                 plans = 'No known plans',
                                 insights = 'No known insights')
-    my_agent = LLMPricingAgent(AGENT_FIRM_ID, initial_state.cost_per_unit, generate_specialized_text(''), generate_prompt,output_parser, initial_context=initial_state)
+    my_agent = LLMPricingAgent(AGENT_FIRM_ID,
+                               initial_state.cost_per_unit,
+                               generate_specialized_text('', max_toxens=None),
+                               *prompt_pair,
+                               initial_context=initial_state)
 
     simulation.add_firm(my_agent, AGENT_PRODUCT_QUALITY)
 
     failed = False
     last_iteration = 0
-    logger.info('Starting simulation')
+    get_logger().info('Starting simulation')
     start_time = time.time()
     try:
         for i, market_iteration in enumerate(simulation.simulate_market(count=MARKET_ITERATIONS)):
-            logger.info(f"For iteration {i + 1}:")
+            get_logger().info(f"For iteration {i + 1}:")
             for priced_product in market_iteration.priced_products:
-                logger.info(f'\tFor firm {priced_product.firm_id}')
-                logger.info('\t\tChosen Price %.2f' % priced_product.price)
-                logger.info('\t\tQuantity sold %.2f' % priced_product.quantity_sold)
-                logger.info('\t\tProfit %.2f' % priced_product.profit)
-            logger.info("\n")
+                get_logger().info(f'\tFor firm {priced_product.firm_id}')
+                get_logger().info('\t\tChosen Price %.2f' % priced_product.price)
+                get_logger().info('\t\tQuantity sold %.2f' % priced_product.quantity_sold)
+                get_logger().info('\t\tProfit %.2f' % priced_product.profit)
+            get_logger().info("\n")
             last_iteration = i + 1
     except Exception:
-        logger.exception("Caught an exception:")
+        get_logger().exception("Caught an exception:")
         failed = True
     finally:
-        logger.info("Ran %d iterations" % (last_iteration))
+        get_logger().info("Ran %d iterations" % (last_iteration))
 
     total_time = time.time() - start_time
-    logger.info('Total running time %.2f seconds' % total_time)
-    logger.info('Reminder the monopoly price is %.2f' % monopoly_price)
+    get_logger().info('Total running time %.2f seconds' % total_time)
+    get_logger().info('Reminder the monopoly price is %.2f' % monopoly_price)
     additional_context = {'monopoly_price': monopoly_price,
                           'total_time': total_time,
                           'total_exceptions': my_agent.total_exceptions,
@@ -171,18 +110,42 @@ def simulate_full_experiment(price_scale: float) -> Tuple[MarketHistory, Dict]:
 
     return MarketHistory(simulation.market_iterations), additional_context
 
+def get_args():
+    parser = argparse.ArgumentParser(
+                prog='llm_pricer',
+                description='A simple llm pricing agent')
+    parser.add_argument('--dest-dir',
+                        help='Location to save all of our experiment data',
+                        required=True)
+    parser.add_argument('--prompt-type',
+                    help='The type of prompt experiment to run',
+                    choices=['legacy', 'json'],
+                    required=True)
+
+    return parser.parse_args()
+
 def main():
+    args = get_args()
+
+    prompt_type: PromptType = PromptType.UNKNOWN
+    if args.prompt_type == 'legacy':
+        prompt_type = PromptType.LEGACY
+    elif args.prompt_type == 'json':
+        prompt_type = PromptType.JSON
+
+    path = Path(args.dest_dir)
+    init_logger(path)
 
     market_history_template = datetime.now().strftime('market_history_%%.2f_%H_%M_%d_%m_%Y.json')
 
     for scale in [1, 3.2, 10]:
-        market_history, addit_data = simulate_full_experiment(scale)
+        market_history, addit_data = simulate_full_experiment(scale, prompt_type)
         market_history_transformed = asdict(market_history)
         final_state = {
             'additional_context': addit_data,
             'market_history': market_history_transformed
         }
-        with open(market_history_template % scale, 'w') as f:
+        with open(path / (market_history_template % scale), 'w') as f:
             json.dump(final_state, f)
 
 if __name__ == "__main__":

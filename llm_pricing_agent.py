@@ -1,6 +1,6 @@
 from typing import Any, Callable, Tuple
 
-from logger import logger
+from logger import get_logger
 from market_history import MarketHistory
 from pricing_agent import PricingAgent
 
@@ -32,12 +32,12 @@ class LLMPricingAgent(PricingAgent):
                 break
             except Exception:
                 self.total_exceptions += 1
-                logger.warning('Failed retrying (Current attempt: %d)' % (i+1))
+                get_logger().warning('Failed retrying (Current attempt: %d)' % (i+1))
                 if i == (LLM_RETRY_COUNT - 1):
-                    logger.error('To many failures, quiting experiment')
+                    get_logger().error('To many failures, quiting experiment')
                     raise
                 else:
-                    logger.exception('Exception was:')
+                    get_logger().exception('Exception was:')
         self.context = new_context
         return new_price
 
