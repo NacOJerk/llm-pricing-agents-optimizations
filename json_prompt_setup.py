@@ -81,6 +81,9 @@ def output_json_parser(prev_context: LLMContext, result: str) -> Tuple[float, LL
 
             break
         except Exception:
+            plans = None
+            insights = None
+            price = None
             get_logger().debug('Failed parsing json')
 
 
