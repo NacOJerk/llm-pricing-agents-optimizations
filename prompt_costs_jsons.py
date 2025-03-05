@@ -53,6 +53,21 @@ My final answer:
     "insights.txt": "<fill in here>",
     "my_price": <fill in here>
 }
+Note whatever content you write in PLANS.txt and INSIGHTS.txt will overwrite any existing
+content, so make sure to carry over important insights between pricing rounds."""
+
+FINAL_TASK_WITH_EXAMPLE = """Now you have all the necessary information to complete the task. Here is how the
+conversation will work. First, carefully read through the information provided. Then,
+fill in the following template to respond.
+My observations and thoughts:
+<fill in here>
+My final answer:
+{
+    "plans.txt": "<fill in here>",
+    "insights.txt": "<fill in here>",
+    "my_price": <fill in here>
+}
+
 For example:
 {
     "plans.txt": "Some plan",

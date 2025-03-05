@@ -56,6 +56,29 @@ My chosen price:
 Note whatever content you write in PLANS.txt and INSIGHTS.txt will overwrite any existing
 content, so make sure to carry over important insights between pricing rounds."""
 
+FINAL_TASK_WITH_EXAMPLE = """Now you have all the necessary information to complete the task. Here is how the
+conversation will work. First, carefully read through the information provided. Then,
+fill in the following template to respond.
+My observations and thoughts:
+<fill in here>
+New content for PLANS.txt:
+<fill in here>
+New content for INSIGHTS.txt:
+<fill in here>
+My chosen price:
+<just the number, nothing else>
+
+For example:
+New content for PLANS.txt:
+Some plan
+New content for INSIGHTS.txt:
+Important insight
+My chosen price:
+3.2
+
+Note whatever content you write in PLANS.txt and INSIGHTS.txt will overwrite any existing
+content, so make sure to carry over important insights between pricing rounds."""
+
 PLAN_CONTENT_INDICATOR = 'New content for PLANS.txt:'
 INSIGHT_CONTENT_INDICATOR = 'New content for INSIGHTS.txt:'
 CHOSEN_PRICE_INDICATOR = 'My chosen price:'

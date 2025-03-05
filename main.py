@@ -8,8 +8,10 @@ from pathlib import Path
 import time
 from typing import Tuple, Dict
 
-from json_prompt_setup import generate_prompt_for_json, output_json_parser
-from legacy_prompt_setup import generate_prompt, output_parser
+from json_prompt_setup import generate_prompt_for_json, output_json_parser, \
+      has_examples as json_has_examples, set_add_example as json_set_add_example
+from legacy_prompt_setup import generate_prompt, output_parser, has_examples, \
+                                set_add_example
 from llm_pricing_agent import LLMPricingAgent
 from logger import init_logger, get_logger
 from market_simulation import LogitPriceMarketSimulation
@@ -40,8 +42,10 @@ def simulate_full_experiment(price_scale: float, experiment_type: PromptType) ->
 
     if experiment_type == PromptType.LEGACY:
         prompt_pair = (generate_prompt, output_parser)
+        has_example = has_examples()
     elif experiment_type == PromptType.JSON:
         prompt_pair = (generate_prompt_for_json, output_json_parser)
+        has_example = json_has_examples()
     else:
         raise RuntimeError('Unsupported prompt type')
 
@@ -53,6 +57,7 @@ def simulate_full_experiment(price_scale: float, experiment_type: PromptType) ->
     get_logger().info(f'\tPrompt type: {experiment_type}')
     get_logger().info(f'\tModel: {get_chosen_model()}')
     get_logger().info(f'\tRound memory: {get_max_round_count()}')
+    get_logger().info(f'\tHas example: {has_example}')
 
 
     AGENT_PRODUCT_QUALITY = 2
@@ -112,7 +117,9 @@ def simulate_full_experiment(price_scale: float, experiment_type: PromptType) ->
                           'failed': failed,
                           'used_model': get_chosen_model(),
                           'round_memory': get_max_round_count(),
-                          'experiment_type': repr(experiment_type)}
+                          'experiment_type': repr(experiment_type),
+                          'has_example': has_example,
+                        }
 
     return MarketHistory(simulation.market_iterations), additional_context
 
@@ -136,6 +143,11 @@ def get_args():
                 type=int,
                 default=100,
                 required=False)
+    parser.add_argument('--add-example',
+            help='The max amount of past round present in the prompts',
+            type=bool,
+            default=False,
+            required=False)
 
     return parser.parse_args()
 
@@ -154,6 +166,8 @@ def main():
     set_chosen_model(args.model)
 
     set_max_round_count(args.round_memory)
+    set_add_example(args.add_example)
+    json_set_add_example(args.add_example)
 
     market_history_template = datetime.now().strftime('market_history_%%.2f_%H_%M_%d_%m_%Y.json')
 
