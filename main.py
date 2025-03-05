@@ -14,6 +14,7 @@ from llm_pricing_agent import LLMPricingAgent
 from logger import init_logger, get_logger
 from market_simulation import LogitPriceMarketSimulation
 from market_history import MarketHistory
+from prompt_commons import set_max_round_count, get_max_round_count
 from simple_llm_context import LLMContext
 from together_endpoint_predictor import generate_specialized_text, get_chosen_model, \
                                         get_available_models, set_chosen_model
@@ -51,6 +52,7 @@ def simulate_full_experiment(price_scale: float, experiment_type: PromptType) ->
     get_logger().info(f'\toutside_good: {MARKET_OUTSIDE_GOOD}')
     get_logger().info(f'\tPrompt type: {experiment_type}')
     get_logger().info(f'\tModel: {get_chosen_model()}')
+    get_logger().info(f'\tRound memory: {get_max_round_count()}')
 
 
     AGENT_PRODUCT_QUALITY = 2
@@ -108,7 +110,8 @@ def simulate_full_experiment(price_scale: float, experiment_type: PromptType) ->
                           'total_exceptions': my_agent.total_exceptions,
                           'monopoly_price_multiplier': monopoly_price_multiplier,
                           'failed': failed,
-                          'used_model': get_chosen_model()}
+                          'used_model': get_chosen_model(),
+                          'round_memory': get_max_round_count()}
 
     return MarketHistory(simulation.market_iterations), additional_context
 
@@ -127,7 +130,11 @@ def get_args():
                 help='The type of prompt experiment to run',
                 choices=get_available_models(),
                 required=True)
-
+    parser.add_argument('--round-memory',
+                help='The max amount of past round present in the prompts',
+                type=int,
+                default=100,
+                required=False)
 
     return parser.parse_args()
 
@@ -144,6 +151,8 @@ def main():
     init_logger(path)
 
     set_chosen_model(args.model)
+
+    set_max_round_count(args.round_memory)
 
     market_history_template = datetime.now().strftime('market_history_%%.2f_%H_%M_%d_%m_%Y.json')
 

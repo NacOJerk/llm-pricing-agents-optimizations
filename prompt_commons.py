@@ -2,8 +2,17 @@ from llm_pricing_agent import LLMPricingAgent
 from market_history import MarketHistory
 from prompt_costs import SINGLE_MARKET_ROUND_DATA
 
+MAX_ROUND_COUNT = 100
+
+def set_max_round_count(count: int):
+    assert count >= 0, 'Can\'t have a negative count'
+    global MAX_ROUND_COUNT
+    MAX_ROUND_COUNT = count
+
+def get_max_round_count() -> int:
+    return MAX_ROUND_COUNT
+
 def generate_market_history(_: LLMPricingAgent, market_history: MarketHistory) -> str:
-    MAX_ROUND_COUNT = 100
 
     accumilative_history = []
     for i, past_iteration in enumerate(market_history.past_iteration, start=1):
