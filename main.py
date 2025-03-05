@@ -19,7 +19,8 @@ from market_history import MarketHistory
 from prompt_commons import set_max_round_count, get_max_round_count
 from simple_llm_context import LLMContext
 from together_endpoint_predictor import generate_specialized_text, get_chosen_model, \
-                                        get_available_models, set_chosen_model
+                                        get_available_models, set_chosen_model, set_using_tooling, \
+                                        reset_tooling_info, get_tooling_info_dict
 
 MARKET_OUTSIDE_GOOD = 0
 PRODUCT_QUALITIES = 2
@@ -32,7 +33,7 @@ class PromptType(Enum):
     LEGACY = auto()
     JSON = auto()
 
-def simulate_full_experiment(price_scale: float, experiment_type: PromptType) -> Tuple[MarketHistory, Dict]:
+def simulate_full_experiment(price_scale: float, experiment_type: PromptType, use_tooling: bool) -> Tuple[MarketHistory, Dict]:
     simulation = LogitPriceMarketSimulation(
         quantity_scale=QUANTITY_SCALE,
         price_scale=price_scale,
@@ -40,12 +41,17 @@ def simulate_full_experiment(price_scale: float, experiment_type: PromptType) ->
         outside_good=MARKET_OUTSIDE_GOOD
     )
 
+    if use_tooling:
+        reset_tooling_info()
+
     if experiment_type == PromptType.LEGACY:
         prompt_pair = (generate_prompt, output_parser)
         has_example = has_examples()
     elif experiment_type == PromptType.JSON:
         prompt_pair = (generate_prompt_for_json, output_json_parser)
         has_example = json_has_examples()
+        if use_tooling:
+            get_logger().warning('Tooling and json mode don\'t work well together')
     else:
         raise RuntimeError('Unsupported prompt type')
 
@@ -58,6 +64,7 @@ def simulate_full_experiment(price_scale: float, experiment_type: PromptType) ->
     get_logger().info(f'\tModel: {get_chosen_model()}')
     get_logger().info(f'\tRound memory: {get_max_round_count()}')
     get_logger().info(f'\tHas example: {has_example}')
+    get_logger().info(f'\tUses tooling: {use_tooling}')
 
 
     AGENT_PRODUCT_QUALITY = 2
@@ -79,11 +86,13 @@ def simulate_full_experiment(price_scale: float, experiment_type: PromptType) ->
                                max_client_price= monopoly_price * monopoly_price_multiplier,
                                 plans = 'No known plans',
                                 insights = 'No known insights')
+    set_using_tooling(use_tooling)
     my_agent = LLMPricingAgent(AGENT_FIRM_ID,
                                initial_state.cost_per_unit,
-                               generate_specialized_text('', max_toxens=None),
+                               generate_specialized_text(),
                                *prompt_pair,
-                               initial_context=initial_state)
+                               initial_context=initial_state,
+                               add_tooling=use_tooling)
 
     simulation.add_firm(my_agent, AGENT_PRODUCT_QUALITY)
 
@@ -119,9 +128,12 @@ def simulate_full_experiment(price_scale: float, experiment_type: PromptType) ->
                           'round_memory': get_max_round_count(),
                           'experiment_type': repr(experiment_type),
                           'has_example': has_example,
-                          'total_iterations': len(simulation.market_iterations)
+                          'total_iterations': len(simulation.market_iterations),
+                          'used_tooling': use_tooling,
+                          'tooling_info': {},
                         }
-
+    if use_tooling:
+        additional_context['tooling_info'] = get_tooling_info_dict()
     return MarketHistory(simulation.market_iterations), additional_context
 
 def get_args():
@@ -149,6 +161,11 @@ def get_args():
             default=False,
             action='store_true',
             required=False)
+    parser.add_argument('--use-tooling',
+            help='Expose json based python tooling to agent',
+            default=False,
+            action='store_true',
+            required=False)
 
     return parser.parse_args()
 
@@ -173,7 +190,7 @@ def main():
     market_history_template = datetime.now().strftime('market_history_%%.2f_%H_%M_%d_%m_%Y.json')
 
     for scale in [1, 3.2, 10]:
-        market_history, addit_data = simulate_full_experiment(scale, prompt_type)
+        market_history, addit_data = simulate_full_experiment(scale, prompt_type, args.use_tooling)
         market_history_transformed = asdict(market_history)
         final_state = {
             'additional_context': addit_data,
