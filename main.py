@@ -111,7 +111,8 @@ def simulate_full_experiment(price_scale: float, experiment_type: PromptType) ->
                           'monopoly_price_multiplier': monopoly_price_multiplier,
                           'failed': failed,
                           'used_model': get_chosen_model(),
-                          'round_memory': get_max_round_count()}
+                          'round_memory': get_max_round_count(),
+                          'experiment_type': repr(experiment_type)}
 
     return MarketHistory(simulation.market_iterations), additional_context
 
