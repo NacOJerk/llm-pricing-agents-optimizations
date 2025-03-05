@@ -119,6 +119,7 @@ def simulate_full_experiment(price_scale: float, experiment_type: PromptType) ->
                           'round_memory': get_max_round_count(),
                           'experiment_type': repr(experiment_type),
                           'has_example': has_example,
+                          'total_iterations': len(simulation.market_iterations)
                         }
 
     return MarketHistory(simulation.market_iterations), additional_context
@@ -145,8 +146,8 @@ def get_args():
                 required=False)
     parser.add_argument('--add-example',
             help='The max amount of past round present in the prompts',
-            type=bool,
             default=False,
+            action='store_true',
             required=False)
 
     return parser.parse_args()
