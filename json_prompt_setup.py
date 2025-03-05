@@ -74,6 +74,11 @@ def output_json_parser(prev_context: LLMContext, result: str) -> Tuple[float, LL
             plans = parsed_result['plans.txt']
             insights = parsed_result['insights.txt']
             price = parsed_result['my_price']
+
+            assert type(plans) == str
+            assert type(insights) == str
+            assert type(price) == int
+
             break
         except Exception:
             get_logger().debug('Failed parsing json')
