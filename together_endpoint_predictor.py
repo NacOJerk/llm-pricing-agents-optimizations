@@ -1,6 +1,20 @@
 from together import Together
+from typing import List
 
-CHOSEN_MODEL = "meta-llama/Meta-Llama-3-8B-Instruct-Turbo"
+CHOSEN_MODEL = None
+
+def get_available_models() -> List[str]:
+    return ['meta-llama/Llama-2-7b-chat-hf', 'meta-llama/Meta-Llama-3-8B-Instruct-Turbo']
+
+def set_chosen_model(model: str):
+    assert model in get_available_models()
+
+    global CHOSEN_MODEL
+    CHOSEN_MODEL = model
+
+def get_chosen_model() -> str:
+    assert CHOSEN_MODEL != None
+    return CHOSEN_MODEL
 
 client = Together()
 
