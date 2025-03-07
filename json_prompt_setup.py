@@ -77,7 +77,7 @@ def output_json_parser(prev_context: LLMContext, result: str) -> Tuple[float, LL
 
             assert type(plans) == str
             assert type(insights) == str
-            assert type(price) == int
+            assert type(price) == int or type(price) == float
 
             break
         except Exception:
