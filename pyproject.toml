@@ -5,14 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "accelerate>=1.4.0",
-    "datasets>=3.3.1",
-    "evaluate>=0.4.3",
+    "numpy>=2.2.3",
     "regex>=2024.11.6",
-    "rich>=13.9.4",
     "scipy>=1.15.2",
     "together>=1.4.1",
-    "torch>=2.6.0",
-    "torchaudio>=2.6.0",
-    "torchvision>=0.21.0",
 ]
